@@ -2,6 +2,7 @@ import sqlalchemy as _sql
 from app.db.database_connection import Base
 
 
+# Define the ORM database models representing tables in the database
 class WeatherRecordDB(Base):
     __tablename__ = "weather_data_record"
     id = _sql.Column(_sql.Integer, primary_key=True, autoincrement=True)

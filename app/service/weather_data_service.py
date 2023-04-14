@@ -1,7 +1,6 @@
 import os
 from datetime import datetime
 import logging
-import pandas as pd
 
 from sqlalchemy import func
 
@@ -13,32 +12,47 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
-# TODO: Log Start and End Times
-# TODO: Add Comments
-
-
 class WeatherService:
+    # Initialize the WeatherService with the database session
     def __init__(self, db=session):
         self.db = db
 
     def ingest_data(self, data_path):
+        # Ingest data from a directory of files
+        ingestion_start_time = datetime.now()
+        logging.info(f'Data Ingestion Start Time: {ingestion_start_time}')
+        file_count = 0
+
         for filename in os.listdir(data_path):
             if filename.endswith('.txt'):
+                file_count += 1
                 file_path = os.path.join(data_path, filename)
-
                 station_id = filename.split('.')[0]
                 self.ingest_data_from_file(file_path=file_path, station_id=station_id)
+
+        ingestion_end_time = datetime.now()
+        logging.info(f'Data Ingestion End Time: {ingestion_end_time}')
+        logging.info(f'Number of files ingested: {file_count}')
+        logging.info(f'Total time taken for data ingestion of {file_count} files is {ingestion_end_time-ingestion_start_time}')
 
     def ingest_data_from_file(self, file_path, station_id):
         with open(file_path, 'r') as f:
             for line in f:
                 data = line.strip().split('\t')
+
+                # Convert the date string to a datetime object
                 date = datetime.strptime(data[0], '%Y%m%d').date()
+
+                # Convert temperature and precipitation strings to float in degree Celsius & Millimeter
                 max_temp = float(data[1]) / 10 if data[1] != '-9999' else None
                 min_temp = float(data[2]) / 10 if data[2] != '-9999' else None
                 precipitation = float(data[3]) / 10 if data[3] != '-9999' else None
+
+                # Check if the record already exists in the database to avoid adding duplicate records
                 exists = self.db.query(WeatherRecordDB).filter(WeatherRecordDB.station_id == station_id,
                                                                WeatherRecordDB.date == date).first()
+
+                # If the record doesn't exist, create a new WeatherRecordDB object and add it to the session
                 if not exists:
                     weather_data = WeatherRecordDB(station_id=station_id, date=date,
                                                    max_temperature=max_temp,
@@ -46,27 +60,19 @@ class WeatherService:
                                                    precipitation=precipitation
                                                    )
                     self.db.add(weather_data)
-            self.db.commit()
 
-        # data = pd.read_csv(file_path, sep="\t", header=None,
-        #                    names=['date', 'max_temperature', 'min_temperature', 'precipitation'])
-        # # Replace missing values with None
-        # data = data.replace(-9999, None)
-        # # Parse date string and convert it into datetime.date object
-        # data['date'] = data['date'].apply(lambda x: datetime.strptime(str(x), '%Y%m%d').date())
-        # # Add station ID to data
-        # data['station_id'] = station_id
-        # # Remove any duplicate rows
-        # data.drop_duplicates(inplace=True)
-        # data.to_sql('weather_data_record', self.db, if_exists='append', index=False)
+            # Commit the changes to the database
+            self.db.commit()
 
     def weather_data_analysis(self):
 
-        # Query all distinct years and weather stations from the database
+        # Query to get all the distinct years and weather stations from the database
         year_stations = self.db.query(func.distinct(func.strftime('%Y', WeatherRecordDB.date)),
                                       WeatherRecordDB.station_id).all()
+
+        # Iterate through each year and station to calculate the statistics
         for year, station in year_stations:
-            # Query all data for the current year and weather station, ignoring missing values
+            # Query to get all the data for the current year and weather station while ignoring missing values
             data = self.db.query(
                 func.avg(WeatherRecordDB.max_temperature),
                 func.avg(WeatherRecordDB.min_temperature),
@@ -79,6 +85,7 @@ class WeatherService:
                 WeatherRecordDB.precipitation is not None
             ).first()
 
+            # Check if the statistics already exist for the year and station, and add them if they don't
             exists = self.db.query(WeatherStatsDB).filter(WeatherStatsDB.station_id == station,
                                                           WeatherStatsDB.year == year).first()
 
@@ -93,8 +100,11 @@ class WeatherService:
         self.db.commit()
 
     def get_weather_record(self, station_id, date):
+        # Query to get all the data for the specified station_id and year from weather record table
         result = self.db.query(WeatherRecordDB).filter(WeatherRecordDB.station_id == station_id,
                                                        WeatherRecordDB.date == date).all()
+
+        # If there are records, create a list of WeatherStatsItem objects with the retrieved data and returns the list.
         if result:
             results = [WeatherRecordItem(station_id=record.station_id,
                                          date=record.date,
@@ -106,8 +116,10 @@ class WeatherService:
             return None
 
     def get_weather_stats(self, station_id, year):
+        # Query to get all the data for the specified station_id and year from weather stats table
         result = self.db.query(WeatherStatsDB).filter(WeatherStatsDB.station_id == station_id,
                                                       WeatherStatsDB.year == year).all()
+        # If there are records, create a list of WeatherStatsItem objects with the retrieved data and returns the list.
         if result:
             results = [WeatherStatsItem(station_id=record.station_id,
                                         year=record.year,

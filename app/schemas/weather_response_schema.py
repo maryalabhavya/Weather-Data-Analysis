@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 
 
+# Define two Pydantic models to represent the data returned by the API.
 class WeatherRecordItem(BaseModel):
     station_id: str
     date: str
@@ -15,6 +16,3 @@ class WeatherStatsItem(BaseModel):
     avg_min_temperature: float
     avg_max_temperature: float
     total_precipitation: float
-
-
-
