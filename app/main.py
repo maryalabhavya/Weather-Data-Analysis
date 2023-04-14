@@ -2,6 +2,8 @@ import fastapi
 import uvicorn as uvicorn
 import logging
 
+from fastapi_pagination import add_pagination
+
 from app.service.weather_data_service import WeatherService
 from app.db import database_connection
 from app.routes import weather_routes
@@ -24,6 +26,7 @@ def configure():
 
 configure()
 
+add_pagination(api)
 
 if __name__ == '__main__':
     uvicorn.run("main:api", port=8000)

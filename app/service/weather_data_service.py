@@ -7,10 +7,12 @@ from sqlalchemy import func
 
 from app.models.weather_data_model import WeatherRecordDB, WeatherStatsDB
 from app.db.database_connection import session
-
+from app.schemas.weather_response_schema import WeatherRecordItem, WeatherStatsItem
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+
 # TODO: Log Start and End Times
 # TODO: Add Comments
 
@@ -93,9 +95,25 @@ class WeatherService:
     def get_weather_record(self, station_id, date):
         result = self.db.query(WeatherRecordDB).filter(WeatherRecordDB.station_id == station_id,
                                                        WeatherRecordDB.date == date).all()
-        return result
+        if result:
+            results = [WeatherRecordItem(station_id=record.station_id,
+                                         date=record.date,
+                                         min_temperature=record.min_temperature,
+                                         max_temperature=record.max_temperature,
+                                         precipitation=record.precipitation) for record in result]
+            return results
+        else:
+            return None
 
     def get_weather_stats(self, station_id, year):
         result = self.db.query(WeatherStatsDB).filter(WeatherStatsDB.station_id == station_id,
                                                       WeatherStatsDB.year == year).all()
-        return result
+        if result:
+            results = [WeatherStatsItem(station_id=record.station_id,
+                                        year=record.year,
+                                        avg_min_temperature=record.avg_min_temperature,
+                                        avg_max_temperature=record.avg_max_temperature,
+                                        total_precipitation=record.total_precipitation) for record in result]
+            return results
+        else:
+            return None

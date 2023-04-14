@@ -10,7 +10,6 @@ class WeatherRecordDB(Base):
     max_temperature = _sql.Column(_sql.Float)
     min_temperature = _sql.Column(_sql.Float)
     precipitation = _sql.Column(_sql.Float)
-    # __table_args__ = (_sql.UniqueConstraint('station_id', 'date'),)
 
 
 class WeatherStatsDB(Base):
